@@ -1,6 +1,6 @@
-package io.imast.core.ext.pattern;
+package io.imast.core.pattern;
 
-import io.imast.core.ext.Coll;
+import io.imast.core.Coll;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

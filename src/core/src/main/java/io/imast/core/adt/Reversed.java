@@ -1,4 +1,4 @@
-package io.imast.core.ext.adt;
+package io.imast.core.adt;
 
 import java.util.Iterator;
 import java.util.List;

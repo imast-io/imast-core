@@ -1,4 +1,4 @@
-package io.imast.core.ext;
+package io.imast.core;
 
 import java.util.HashSet;
 import java.util.Set;

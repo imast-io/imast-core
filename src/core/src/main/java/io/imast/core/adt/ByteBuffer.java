@@ -1,4 +1,4 @@
-package io.imast.core.ext.adt;
+package io.imast.core.adt;
 
 /**
  * The byte buffer in place

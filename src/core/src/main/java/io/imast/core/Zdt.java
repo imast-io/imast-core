@@ -1,4 +1,4 @@
-package io.imast.core.ext;
+package io.imast.core;
 
 import io.vavr.control.Try;
 import java.time.Duration;

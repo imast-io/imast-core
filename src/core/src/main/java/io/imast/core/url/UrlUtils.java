@@ -1,4 +1,4 @@
-package io.imast.core.ext.url;
+package io.imast.core.url;
 
 import io.vavr.control.Try;
 import java.net.URLDecoder;

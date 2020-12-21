@@ -1,6 +1,6 @@
 package io.imast.core.compress;
 
-import io.imast.core.ext.adt.ByteBuffer;
+import io.imast.core.adt.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
 /**

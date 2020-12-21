@@ -1,4 +1,4 @@
-package io.imast.core.ext;
+package io.imast.core;
 
 import java.util.Collection;
 import java.util.HashMap;

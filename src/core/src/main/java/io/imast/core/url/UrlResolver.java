@@ -1,4 +1,4 @@
-package io.imast.core.ext.url;
+package io.imast.core.url;
 
 /**
  * The URL Resolver 

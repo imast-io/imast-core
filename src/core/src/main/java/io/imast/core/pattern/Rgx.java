@@ -1,4 +1,4 @@
-package io.imast.core.ext.pattern;
+package io.imast.core.pattern;
 
 import java.util.ArrayList;
 import java.util.regex.Pattern;
