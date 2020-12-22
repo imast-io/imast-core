@@ -4,21 +4,21 @@
     <modelVersion>4.0.0</modelVersion>
     
     <groupId>io.imast</groupId>
-    <artifactId>discovery-core</artifactId>
+    <artifactId>client-webflux</artifactId>
     <version>1.0.0</version>  
     <packaging>jar</packaging>
     
     <name>${project.groupId}:${project.artifactId}</name>
-    <description>The core functionality for discovery clients</description>
+    <description>The webflux-based implementation for base client infrastructure</description>
     <url>https://github.com/imast-io/imast-core/</url>
-        
+    
     <parent>
         <groupId>io.imast</groupId>
         <artifactId>open-source-parent</artifactId>
         <version>1.0.0</version>
         <relativePath>../open-source-parent</relativePath>
     </parent>
-    
+        
     <properties>
         <java.version>11</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -28,11 +28,19 @@
     </properties>
 
     <dependencies>  
+    
         <dependency>
             <groupId>io.imast</groupId>
-            <artifactId>core</artifactId>
+            <artifactId>client-core</artifactId>
             <version>1.0.0</version>
         </dependency>
+        
+        <dependency>
+	    <groupId>org.springframework</groupId>
+	    <artifactId>spring-webflux</artifactId>
+            <version>5.3.2</version>
+	</dependency>
+
     </dependencies>
     
 </project>
