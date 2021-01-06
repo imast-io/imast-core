@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    
+    <modelVersion>4.0.0</modelVersion>
+    
+    <groupId>io.imast</groupId>
+    <artifactId>scheduler-data</artifactId>
+    <version>1.0.0</version>  
+    <packaging>jar</packaging>
+    
+    <name>${project.groupId}:${project.artifactId}</name>
+    <description>The scheduler controller data module API</description>
+    <url>https://github.com/imast-io/imast-core/</url>
+        
+    <parent>
+        <groupId>io.imast</groupId>
+        <artifactId>open-source-parent</artifactId>
+        <version>1.0.0</version>
+        <relativePath>../open-source-parent</relativePath>
+    </parent>
+    
+    <properties>
+        <java.version>11</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <version.plugin.source></version.plugin.source>
+    </properties>
+
+    <dependencies>  
+    
+        <dependency>
+            <groupId>io.imast</groupId>
+            <artifactId>core</artifactId>
+            <version>1.0.0</version>
+        </dependency>
+        
+         <dependency>
+            <groupId>io.imast</groupId>
+            <artifactId>scheduler-model</artifactId>
+            <version>1.0.0</version>
+         </dependency>
+
+    </dependencies>
+    
+</project>
