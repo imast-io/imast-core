@@ -2,16 +2,20 @@ package io.imast.core.scheduler.impl;
 
 import com.mongodb.client.MongoDatabase;
 import io.imast.core.mongo.BaseMongoRepository;
+import io.imast.core.mongo.SimplePojoRegistries;
+import io.imast.core.mongo.StringIdGenerator;
 import io.imast.core.scheduler.AgentDefinitionRepository;
 import io.imast.core.scheduler.agent.AgentDefinition;
 import java.util.Optional;
+import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.codecs.pojo.ClassModel;
 
 /**
  * The agent definition repository
  * 
  * @author davitp
  */
-public class AgentDefinitionMongoRepository extends BaseMongoRepository<AgentDefinition> implements AgentDefinitionRepository{
+public class AgentDefinitionMongoRepository extends BaseMongoRepository<String, AgentDefinition> implements AgentDefinitionRepository{
 
     /**
      * Creates new instance of agent definitions mongo repository
@@ -20,6 +24,20 @@ public class AgentDefinitionMongoRepository extends BaseMongoRepository<AgentDef
      */
     public AgentDefinitionMongoRepository(MongoDatabase mongoDatabase){
         super(mongoDatabase, "agent_definitions", AgentDefinition.class);
+    }
+    
+    /**
+     * The custom Codec registry
+     * 
+     * @return Returns custom Codec registry
+     */
+    @Override
+    protected CodecRegistry customizer(){
+        return SimplePojoRegistries.simple(
+            ClassModel.builder(this.clazz)
+                    .idGenerator(new StringIdGenerator())
+                    .build()
+        );
     }
     
     /**

@@ -22,11 +22,6 @@ public class JobStatusExchangeRequest {
     private String group;
     
     /**
-     * The job type 
-     */
-    private String type;
-    
-    /**
      * The cluster
      */
     private String cluster;

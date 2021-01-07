@@ -46,9 +46,29 @@ public class WorkerControllerConfig {
      * The frequency of agent updates
      */
     private Duration workerSignalRate;
-        
+    
     /**
-     * The cluster configuration
+     * The type of clustering
      */
-    private ClusterConfiguration clusterConfiguration;
+    private ClusteringType clusteringType;
+    
+    /**
+     * The data source
+     */
+    private String dataSource;
+    
+    /**
+     * The data source URI
+     */
+    private String dataSourceUri;
+    
+    /**
+     * The data source username
+     */
+    private String dataSourceUsername;
+    
+    /**
+     * The data source password
+     */
+    private String dataSourcePassword;
 }

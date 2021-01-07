@@ -1,6 +1,5 @@
 package io.imast.core.scheduler;
 
-import io.imast.core.Coll;
 import io.imast.core.Lang;
 import io.imast.core.Str;
 import io.imast.core.Zdt;
@@ -32,6 +31,7 @@ import io.imast.core.scheduler.exchange.JobMetadataRequest;
 import io.imast.core.scheduler.exchange.JobStatusExchangeRequest;
 import io.imast.core.scheduler.quartz.EveryJobListener;
 import io.imast.core.scheduler.quartz.JobSchedulerListener;
+import java.util.UUID;
 
 /**
  * The job executor manager
@@ -62,6 +62,16 @@ public class WorkerController {
     protected final ScheduledExecutorService schedulerExecutor;
     
     /**
+     * The cluster name
+     */
+    protected final String cluster;
+    
+    /**
+     * The worker name
+     */
+    protected final String worker;
+    
+    /**
      * The scheduler
      */
     protected Scheduler scheduler;
@@ -70,11 +80,6 @@ public class WorkerController {
      * The quartz scheduler factory
      */
     protected StdSchedulerFactory schedulerFactory;
-        
-    /**
-     * If the scheduler is valid
-     */
-    protected boolean valid;
     
     /**
      * The agent definition
@@ -93,14 +98,15 @@ public class WorkerController {
         this.jobFactory = jobFactory;
         this.workerChannel = workerChannel;
         this.schedulerExecutor =  Executors.newScheduledThreadPool(1);
+        this.cluster = Str.blank(this.config.getCluster()) ? JobConstants.DEFAULT_CLUSTER : this.config.getCluster();
+        this.worker = Str.blank(this.config.getWorker()) ? UUID.randomUUID().toString() : this.config.getWorker();
     }
     
     /**
      * Initialize the scheduling manager
-     * 
-     * @return Returns the validity state
+     * @throws io.imast.core.scheduler.WorkerException
      */
-    public boolean initialize(){
+    public void initialize() throws WorkerException {
         
         // properties for the quartz scheduler
         var props = this.initProps();
@@ -112,12 +118,12 @@ public class WorkerController {
         this.scheduler = Try.of(() -> this.schedulerFactory == null ? null : this.schedulerFactory.getScheduler()).getOrNull();
         
         // validity indicator
-        this.valid = this.scheduler != null;
+        if(this.scheduler == null){
+            throw new WorkerException("Could not initialize worker controller");
+        }
         
         // initialize scheduler context
-        this.initializeContext();
-        
-        return this.valid;
+        this.initializeContext();        
     }
     
     /**
@@ -126,9 +132,6 @@ public class WorkerController {
      * @return Returns if successful
      */
     public boolean execute(){
-        
-        // do not execute if not valid
-        if(!this.valid) return false;
         
         // the agent definition
         this.agentDefinition = this.ensureRegister(100);
@@ -162,19 +165,20 @@ public class WorkerController {
      * Add scheduler context entity to be used on demand
      * 
      */
-    private void initContextModules(){
+    private void initContextModules() throws WorkerException{
         try {
             this.scheduler.getContext().put(JobConstants.JOB_FACTORY, this.jobFactory);
             this.scheduler.getContext().put(JobConstants.JOB_MODULES, this.jobFactory.getJobModules());
         } catch (SchedulerException error) {
             log.error("WorkerController: Could not register job modules context: ", error);
+            throw new WorkerException("Could not initialize context modules", error);
         }
     }
     
     /**
      * Add scheduler listeners (job, trigger)
      */
-    private void initListeners(){
+    private void initListeners() throws WorkerException{
         try{
             // register job listener
             this.scheduler.getListenerManager().addJobListener(new EveryJobListener(this.workerChannel));
@@ -182,6 +186,7 @@ public class WorkerController {
         }
         catch (SchedulerException error) {
             log.error("WorkerController: Could not register job/trigger listener: ", error);
+            throw new WorkerException("Could not initialize listener modules", error);
         }
     }
     
@@ -353,7 +358,7 @@ public class WorkerController {
     protected void syncImpl(){
         
         // get metadata for cluster
-        var metadata = this.workerChannel.metadata(new JobMetadataRequest(this.config.getCluster())).orElse(null);
+        var metadata = this.workerChannel.metadata(new JobMetadataRequest(this.cluster)).orElse(null);
         
         // check if no groups
         if(metadata == null){
@@ -361,25 +366,39 @@ public class WorkerController {
         }
 
         // get groups
-        var groups = Lang.or(metadata.getGroups(), Str.EMPTY_LIST);
+        var groups = new HashSet<>(Lang.or(metadata.getGroups(), Str.EMPTY_LIST));
         
-        // get types
-        var types = Lang.or(metadata.getTypes(), Str.EMPTY_LIST);
+        // get running groups
+        var runningGroups = Try.of(() -> this.scheduler.getJobGroupNames()).getOrElse(Str.EMPTY_LIST);
         
-        // for each group and type to sync process
-        Coll.doubleForeach(groups, types, this::syncGroupImpl);
+        // unschedule all jobs in groups if the groups is not in controller
+        runningGroups.forEach(running -> {
+            
+            // leave group as it is running both in controller and in worker
+            if(groups.contains(running)){
+                return;
+            }
+            
+            // get jobs in group
+            var jobKeys = Try.of(() -> this.scheduler.getJobKeys(GroupMatcher.jobGroupEquals(running))).getOrElse(Set.of());
+            
+            // unschedule
+            jobKeys.forEach(job -> this.unschedule(job.getName(), job.getGroup()));
+        });
+        
+        // sync groups
+        groups.forEach(this::syncGroupImpl);
     }
 
     /**
      * Sync with controller for group and type pair
      * 
      * @param group The target group
-     * @param type The target type
      */
-    protected void syncGroupImpl(String group, String type){
+    protected void syncGroupImpl(String group){
         
         // get job list
-        var statusUpdate = this.workerChannel.statusExchange(this.status(group, type)).orElse(null);
+        var statusUpdate = this.workerChannel.statusExchange(this.status(group)).orElse(null);
 
         // handle if not recieved jobs
         if(statusUpdate == null){
@@ -387,7 +406,7 @@ public class WorkerController {
             return;
         }
 
-        log.debug(String.format("WorkerController: Syncing jobs (%s in %s) with server. Deleted: %s, Updated: %s, Added: %s", type, group, statusUpdate.getRemoved().size(), statusUpdate.getUpdated().size(), statusUpdate.getAdded().size()));
+        log.debug(String.format("WorkerController: Syncing jobs in %s with server. Deleted: %s, Updated: %s, Added: %s", group, statusUpdate.getRemoved().size(), statusUpdate.getUpdated().size(), statusUpdate.getAdded().size()));
 
         // unschedule all the removed jobs
         statusUpdate.getRemoved().forEach((removedJob) -> {
@@ -406,8 +425,7 @@ public class WorkerController {
      * 
      * @return The current status
      */
-    private JobStatusExchangeRequest status(String group, String type) {
-        
+    private JobStatusExchangeRequest status(String group) {
         // new set for status
         HashMap<String, ZonedDateTime> status = new HashMap<>();
         try {
@@ -427,11 +445,6 @@ public class WorkerController {
                 // the job definition
                 JobDefinition jobDefinition = (JobDefinition) job.getJobDataMap().get(JobConstants.JOB_DEFINITION);
                 
-                // skip jobs of other types
-                if(!Str.eqIgnoreCase(type, jobDefinition.getType())){
-                    continue;
-                }
-                
                 // record last modified time
                 status.put(jobDefinition.getCode(), jobDefinition.getModified());
             }
@@ -440,7 +453,7 @@ public class WorkerController {
             log.error("JobManager: Could not compute status of executing jobs.", error);
         }
                 
-        return new JobStatusExchangeRequest(group, type, this.config.getCluster(), status);
+        return new JobStatusExchangeRequest(group, this.cluster, status);
     }
     
     /**
@@ -474,12 +487,6 @@ public class WorkerController {
      */
     private AgentDefinition register(){
         
-        // the cluster code
-        var cluster = this.config.getCluster();
-        
-        // the worker
-        var worker = this.config.getWorker();
-        
         // the agent signal rate
         Duration singalRate = this.config.getWorkerSignalRate();
         
@@ -487,13 +494,13 @@ public class WorkerController {
         var now = Zdt.utc();
         
         // worker at cluster identity
-        var identity = String.format("%s@%s", worker, cluster);
+        var identity = String.format("%s@%s", this.worker, this.cluster);
         
         // the agent definition
         var agent = AgentDefinition.builder()
                 .id(identity)
-                .worker(worker)
-                .cluster(cluster)
+                .worker(this.worker)
+                .cluster(this.cluster)
                 .name(identity)
                 .supervisor(this.config.isSupervise())
                 .health(new AgentHealth(now, AgentActivityType.REGISTER))
@@ -518,7 +525,7 @@ public class WorkerController {
     /**
      * Initialize the context modules
      */
-    private void initializeContext() {
+    private void initializeContext() throws WorkerException {
         
         // check if scheduler is given
         if(this.scheduler == null){
@@ -540,8 +547,8 @@ public class WorkerController {
         var props = new Properties();
         
         // set instance name for quartz scheduler
-        props.setProperty("org.quartz.scheduler.instanceName", "JOB_MANAGER_" + this.config.getCluster());
-        props.setProperty("org.quartz.scheduler.instanceId", "JOB_MANAGER_" + this.config.getCluster());
+        props.setProperty("org.quartz.scheduler.instanceName", "JOB_MANAGER_" + this.cluster);
+        props.setProperty("org.quartz.scheduler.instanceId", "JOB_MANAGER_" + this.worker);
         props.setProperty("org.quartz.threadPool.threadCount", this.config.getParallelism().toString());
         
         // other props
@@ -549,21 +556,21 @@ public class WorkerController {
         props.setProperty("org.quartz.scheduler.jobFactory.class", "org.quartz.simpl.SimpleJobFactory");
 
         // if JDBC clustering
-        if(this.config.getClusterConfiguration().getClusteringType() == ClusteringType.JDBC){
+        if(this.config.getClusteringType() == ClusteringType.JDBC){
             props.setProperty("org.quartz.jobStore.class", "org.quartz.impl.jdbcjobstore.JobStoreTX");
             props.setProperty("org.quartz.jobStore.driverDelegateClass", "org.quartz.impl.jdbcjobstore.StdJDBCDelegate");
-            props.setProperty("org.quartz.jobStore.dataSource", this.config.getClusterConfiguration().getDataSource());
+            props.setProperty("org.quartz.jobStore.dataSource", this.config.getDataSource());
             props.setProperty("org.quartz.jobStore.tablePrefix", "QRTZ_");
 
             // prefix for data store property
-            var dsPropPrefix = String.format("org.quartz.dataSource.%s", this.config.getClusterConfiguration().getDataSource());
+            var dsPropPrefix = String.format("org.quartz.dataSource.%s", this.config.getDataSource());
             
             // data store properties
             props.setProperty(String.format("%s.%s", dsPropPrefix, "driver"), "com.mysql.jdbc.Driver");
-            props.setProperty(String.format("%s.%s", dsPropPrefix, "URL"), this.config.getClusterConfiguration().getDataSourceUri());
-            props.setProperty(String.format("%s.%s", dsPropPrefix, "user"), this.config.getClusterConfiguration().getDataSourceUsername());
-            props.setProperty(String.format("%s.%s", dsPropPrefix, "password"), this.config.getClusterConfiguration().getDataSourcePassword());
-            props.setProperty(String.format("%s.%s", dsPropPrefix, "maxConnections"), "10");
+            props.setProperty(String.format("%s.%s", dsPropPrefix, "URL"), this.config.getDataSourceUri());
+            props.setProperty(String.format("%s.%s", dsPropPrefix, "user"), this.config.getDataSourceUsername());
+            props.setProperty(String.format("%s.%s", dsPropPrefix, "password"), this.config.getDataSourcePassword());
+            props.setProperty(String.format("%s.%s", dsPropPrefix, "maxConnections"), "30");
         }
         
         return props;

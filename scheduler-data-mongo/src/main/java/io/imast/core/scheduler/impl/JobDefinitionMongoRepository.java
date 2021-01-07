@@ -8,6 +8,8 @@ import static com.mongodb.client.model.Sorts.*;
 import io.imast.core.Coll;
 import io.imast.core.Str;
 import io.imast.core.mongo.BaseMongoRepository;
+import io.imast.core.mongo.SimplePojoRegistries;
+import io.imast.core.mongo.StringIdGenerator;
 import io.imast.core.scheduler.JobDefinition;
 import io.imast.core.scheduler.JobRequestResult;
 import io.imast.core.scheduler.JobStatus;
@@ -16,13 +18,16 @@ import java.util.List;
 import java.util.Optional;
 import org.bson.conversions.Bson;
 import io.imast.core.scheduler.JobDefinitionRepository;
+import java.util.stream.Collectors;
+import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.codecs.pojo.ClassModel;
 
 /**
  * The abstract repository for the job definition
  * 
  * @author davitp
  */
-public class JobDefinitionMongoRepository extends BaseMongoRepository<JobDefinition> implements JobDefinitionRepository {
+public class JobDefinitionMongoRepository extends BaseMongoRepository<String, JobDefinition> implements JobDefinitionRepository {
     
     /**
      * Creates new instance of job definition mongo repository
@@ -31,6 +36,20 @@ public class JobDefinitionMongoRepository extends BaseMongoRepository<JobDefinit
      */
     public JobDefinitionMongoRepository(MongoDatabase mongoDatabase){
         super(mongoDatabase, "job_definitions", JobDefinition.class);
+    }
+    
+    /**
+     * The custom Codec registry
+     * 
+     * @return Returns custom Codec registry
+     */
+    @Override
+    protected CodecRegistry customizer(){
+        return SimplePojoRegistries.simple(
+            ClassModel.builder(this.clazz)
+                    .idGenerator(new StringIdGenerator())
+                    .build()
+        );
     }
     
     /**
@@ -93,7 +112,7 @@ public class JobDefinitionMongoRepository extends BaseMongoRepository<JobDefinit
         
         // add target statuses filter if any
         if(Coll.hasItems(statuses)){
-            filters.add(in("status", statuses));
+            filters.add(in("status", statuses.stream().map(s -> s.toString()).collect(Collectors.toList())));
         }
         
         return this.toList(this.getCollection().find(and(filters)));
@@ -129,7 +148,7 @@ public class JobDefinitionMongoRepository extends BaseMongoRepository<JobDefinit
         
         // add target statuses to exclude filter if any
         if(Coll.hasItems(statuses)){
-            filters.add(not(in("status", statuses)));
+            filters.add(not(in("status", statuses.stream().map(s -> s.toString()).collect(Collectors.toList()))));
         }
         
         return this.toList(this.getCollection().find(and(filters)));
@@ -190,4 +209,6 @@ public class JobDefinitionMongoRepository extends BaseMongoRepository<JobDefinit
         // valid name returned
         return !Str.blank(result);
     }
+    
+    
 }

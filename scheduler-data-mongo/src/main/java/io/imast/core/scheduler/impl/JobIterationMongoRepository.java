@@ -7,6 +7,8 @@ import com.mongodb.client.model.Indexes;
 import io.imast.core.Coll;
 import io.imast.core.Str;
 import io.imast.core.mongo.BaseMongoRepository;
+import io.imast.core.mongo.SimplePojoRegistries;
+import io.imast.core.mongo.StringIdGenerator;
 import io.imast.core.scheduler.JobIterationRepository;
 import io.imast.core.scheduler.iterate.IterationStatus;
 import io.imast.core.scheduler.iterate.JobIteration;
@@ -15,6 +17,8 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import org.bson.codecs.configuration.CodecRegistry;
+import org.bson.codecs.pojo.ClassModel;
 import org.bson.conversions.Bson;
 
 /**
@@ -22,7 +26,7 @@ import org.bson.conversions.Bson;
  * 
  * @author davitp
  */
-public class JobIterationMongoRepository extends BaseMongoRepository<JobIteration> implements JobIterationRepository {
+public class JobIterationMongoRepository extends BaseMongoRepository<String, JobIteration> implements JobIterationRepository {
 
     /**
      * Creates new instance of job iterations mongo repository
@@ -48,6 +52,20 @@ public class JobIterationMongoRepository extends BaseMongoRepository<JobIteratio
         }
         
         return this.toList(this.getCollection().find(eq("jobId", jobId)));
+    }
+        
+    /**
+     * The custom Codec registry
+     * 
+     * @return Returns custom Codec registry
+     */
+    @Override
+    protected CodecRegistry customizer(){
+        return SimplePojoRegistries.simple(
+            ClassModel.builder(this.clazz)
+                    .idGenerator(new StringIdGenerator())
+                    .build()
+        );
     }
 
     /**

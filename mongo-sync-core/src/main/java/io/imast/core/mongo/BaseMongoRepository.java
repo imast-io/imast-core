@@ -10,30 +10,33 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import org.bson.Document;
+import org.bson.codecs.configuration.CodecRegistry;
+
 
 /**
  * The base mongo repository
  * 
  * @author davitp
+ * @param <TKey> The key type
  * @param <T> The primary type of repository
  */
-public class BaseMongoRepository <T> {
+public class BaseMongoRepository <TKey, T> {
    
     /**
      * The target collection name
      */
-    private final String collectionName;
+    protected final String collectionName;
     
     /**
      * The mongo database instance
      */
-    private final MongoDatabase mongoDatabase;
+    protected final MongoDatabase mongoDatabase;
     
     /**
      * The target class instance
      */
-    private final Class<T> clazz;
-    
+    protected final Class<T> clazz;
+        
     /**
      * Creates new instance of mongo repository
      * 
@@ -53,7 +56,18 @@ public class BaseMongoRepository <T> {
      * @return Returns mongo collection
      */
     protected MongoCollection<T> getCollection(){
-        return this.mongoDatabase.getCollection(this.collectionName, this.clazz);
+        return this.mongoDatabase
+                .getCollection(this.collectionName, this.clazz)
+                .withCodecRegistry(this.customizer());
+    }
+    
+    /**
+     * Gets a custom registry for the collection
+     * 
+     * @return Returns Codec registry to use with collection
+     */
+    protected CodecRegistry customizer(){
+        return this.mongoDatabase.getCodecRegistry();
     }
     
     /**
@@ -71,7 +85,7 @@ public class BaseMongoRepository <T> {
      * @param id The item id
      * @return Returns item if found
      */
-    public Optional<T> getById(String id){
+    public Optional<T> getById(TKey id){
         
         // gets the item by id
         var item = this.getCollection().find(eq("_id", id)).first();
@@ -87,7 +101,7 @@ public class BaseMongoRepository <T> {
      * @param idSelector The ID selector
      * @return Returns saved item
      */
-    public Optional<T> upsert(T item, Function<T, String> idSelector){
+    public Optional<T> upsert(T item, Function<T, TKey> idSelector){
                 
         // insert a single item or update
         var result = this.getCollection().replaceOne(eq("_id", idSelector.apply(item)), item, new ReplaceOptions().upsert(true));
@@ -107,7 +121,7 @@ public class BaseMongoRepository <T> {
      * @return Returns saved item
      */
     public Optional<T> insert(T item){
-        
+                
         // try insert one
         var inserted = this.getCollection().insertOne(item);
 
@@ -118,7 +132,7 @@ public class BaseMongoRepository <T> {
             return Optional.empty();
         }
 
-        return this.getById(id.asObjectId().toString());
+        return Optional.ofNullable(this.getCollection().find(eq("_id", id)).first());
     }
     
     /**
@@ -127,7 +141,7 @@ public class BaseMongoRepository <T> {
      * @param id The id of document to delete
      * @return Returns deleted document if any
      */
-    public Optional<T> deleteById(String id){
+    public Optional<T> deleteById(TKey id){
         
         // get existing item
         var existing = this.getById(id);

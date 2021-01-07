@@ -8,6 +8,11 @@ package io.imast.core.scheduler;
 public class JobConstants {
    
     /**
+     * The default cluster name
+     */
+    public static final String DEFAULT_CLUSTER = "DEFAULT_CLUSTER";
+    
+    /**
      * The job session context
      */
     public static final String JOB_SESSION_CONTEXT = "SESSION";

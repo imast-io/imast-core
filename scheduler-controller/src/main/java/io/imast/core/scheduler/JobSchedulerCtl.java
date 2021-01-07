@@ -105,7 +105,7 @@ public class JobSchedulerCtl {
     public JobStatusExchangeResponse statusExchange(JobStatusExchangeRequest status){
         
         // get all the jobs for that type
-        List<JobDefinition> all = this.getAllActive(status.getType(), status.getGroup(), status.getCluster()).getJobs();
+        List<JobDefinition> all = this.getAllActive(status.getGroup(), status.getCluster()).getJobs();
         
         // all job keys
         Set<String> allKeys = all.stream().map(j -> j.getCode()).collect(Collectors.toSet());
@@ -153,7 +153,7 @@ public class JobSchedulerCtl {
             }
         });
      
-        return new JobStatusExchangeResponse(status.getGroup(), status.getType(), deleted, updatedJobs, newJobs);
+        return new JobStatusExchangeResponse(status.getGroup(), deleted, updatedJobs, newJobs);
     }
     
     /**
@@ -344,15 +344,14 @@ public class JobSchedulerCtl {
      * Gets all active jobs for given type and agent
      * This will exclude "defined", "paused", "completed" and "failed" jobs
      * 
-     * @param type The type of jobs
      * @param group The group to filter
      * @param cluster The agent 
      * @return Returns incomplete jobs
      */
-    protected JobRequestResult getAllActive(String type, String group, String cluster){
+    protected JobRequestResult getAllActive(String group, String cluster){
         
         // get jobs by cluster and status
-        var jobs = this.definitions.getByStatusIn(type, group, cluster, Arrays.asList(JobStatus.ACTIVE));
+        var jobs = this.definitions.getByStatusIn(null, group, cluster, Arrays.asList(JobStatus.ACTIVE));
         
         return new JobRequestResult(jobs, (long)jobs.size());
     }
