@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -105,7 +106,7 @@ public class JobSchedulerCtl {
     public JobStatusExchangeResponse statusExchange(JobStatusExchangeRequest status){
         
         // get all the jobs for that type
-        List<JobDefinition> all = this.getAllActive(status.getGroup(), status.getCluster()).getJobs();
+        List<JobDefinition> all = this.getAllActive(status.getGroup(), status.getType(), status.getCluster()).getJobs();
         
         // all job keys
         Set<String> allKeys = all.stream().map(j -> j.getCode()).collect(Collectors.toSet());
@@ -153,7 +154,7 @@ public class JobSchedulerCtl {
             }
         });
      
-        return new JobStatusExchangeResponse(status.getGroup(), deleted, updatedJobs, newJobs);
+        return new JobStatusExchangeResponse(status.getGroup(), status.getType(), deleted, updatedJobs, newJobs);
     }
     
     /**
@@ -258,6 +259,11 @@ public class JobSchedulerCtl {
         // assign to the default agent if not given
         definition.setCluster(definition.getCluster()== null ? "DEFAULT_CLUSTER" : definition.getCluster());
         
+        // make sure job data is there
+        if(definition.getJobData() == null || definition.getJobData().getData() == null){
+            definition.setJobData(new JobData(Map.of()));
+        }
+        
         // insert job definition
         return this.definitions.insert(definition);
     }
@@ -291,6 +297,11 @@ public class JobSchedulerCtl {
         
         // assign to the default agent if not given
         definition.setCluster(definition.getCluster()== null ? "DEFAULT_CLUSTER" : definition.getCluster());
+        
+        // make sure job data is there
+        if(definition.getJobData() == null || definition.getJobData().getData() == null){
+            definition.setJobData(new JobData(Map.of()));
+        }
         
         // insert job definition
         return this.definitions.update(definition);
@@ -345,13 +356,14 @@ public class JobSchedulerCtl {
      * This will exclude "defined", "paused", "completed" and "failed" jobs
      * 
      * @param group The group to filter
+     * @param type The type to check
      * @param cluster The agent 
      * @return Returns incomplete jobs
      */
-    protected JobRequestResult getAllActive(String group, String cluster){
+    protected JobRequestResult getAllActive(String group, String type, String cluster){
         
         // get jobs by cluster and status
-        var jobs = this.definitions.getByStatusIn(null, group, cluster, Arrays.asList(JobStatus.ACTIVE));
+        var jobs = this.definitions.getByStatusIn(type, group, cluster, Arrays.asList(JobStatus.ACTIVE));
         
         return new JobRequestResult(jobs, (long)jobs.size());
     }

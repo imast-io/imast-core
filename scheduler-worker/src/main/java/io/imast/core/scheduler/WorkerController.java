@@ -1,5 +1,6 @@
 package io.imast.core.scheduler;
 
+import io.imast.core.Coll;
 import io.imast.core.Lang;
 import io.imast.core.Str;
 import io.imast.core.Zdt;
@@ -129,17 +130,19 @@ public class WorkerController {
     /**
      * Execute the job manager
      * 
-     * @return Returns if successful
+     * @throws io.imast.core.scheduler.WorkerException
      */
-    public boolean execute(){
+    public void execute() throws WorkerException{
         
         // the agent definition
         this.agentDefinition = this.ensureRegister(100);
         
         // register agent (try N times)
         if(this.agentDefinition == null){
-            return false;
+            throw new WorkerException("WorkerController: Could not register agent in the system");
         }
+        
+        log.debug(String.format("WorkerController: Agent %s is successfuly registered.", this.agentDefinition.getId()));
         
         // schedule heartbit reporter
         this.schedulerExecutor.scheduleAtFixedRate(() -> this.heartbeat(), 0, this.config.getWorkerSignalRate().toMillis(), TimeUnit.MILLISECONDS);
@@ -148,7 +151,6 @@ public class WorkerController {
         if(this.config.isSupervise()){  
             // start job sync worker
             this.schedulerExecutor.scheduleAtFixedRate(() -> this.sync(), 0, this.config.getJobSyncRate().toMillis(), TimeUnit.MILLISECONDS);
-          
         }
        
         try{
@@ -156,9 +158,7 @@ public class WorkerController {
         }
         catch(SchedulerException error){
             log.error("WorkerChannel: Could not start quartz scheduler: ", error);
-        }
-        
-        return true;
+        }        
     }
     
     /**
@@ -294,7 +294,7 @@ public class WorkerController {
             
             // unschedule if exists
             if(!exists){
-                log.warn("JobManager: Job cannot be unscheduled because it does not exist");
+                log.warn("WorkerController: Job cannot be unscheduled because it does not exist");
                 return;
             }
             
@@ -305,7 +305,7 @@ public class WorkerController {
             this.scheduler.deleteJob(key);
         }
         catch (SchedulerException error){
-            log.error("JobManager: Failed to unschedule the job", error);
+            log.error("WorkerController: Failed to unschedule the job", error);
         }
     }
     
@@ -334,7 +334,7 @@ public class WorkerController {
             }
         }
         catch(SchedulerException error){
-            log.error("JobManager: Failed to unschedule the triggers", error);
+            log.error("WorkerController: Failed to unschedule the triggers", error);
         }       
     }
     
@@ -386,19 +386,23 @@ public class WorkerController {
             jobKeys.forEach(job -> this.unschedule(job.getName(), job.getGroup()));
         });
         
-        // sync groups
-        groups.forEach(this::syncGroupImpl);
+        // types of jobs
+        var types = this.jobFactory.getJobClasses().keySet();
+        
+        // for every (group, type) pair do sync process
+        Coll.doubleForeach(groups, types, this::syncGroupImpl);
     }
 
     /**
      * Sync with controller for group and type pair
      * 
      * @param group The target group
+     * @param type The target type
      */
-    protected void syncGroupImpl(String group){
+    protected void syncGroupImpl(String group, String type){
         
         // get job list
-        var statusUpdate = this.workerChannel.statusExchange(this.status(group)).orElse(null);
+        var statusUpdate = this.workerChannel.statusExchange(this.status(group, type)).orElse(null);
 
         // handle if not recieved jobs
         if(statusUpdate == null){
@@ -425,7 +429,7 @@ public class WorkerController {
      * 
      * @return The current status
      */
-    private JobStatusExchangeRequest status(String group) {
+    private JobStatusExchangeRequest status(String group, String type) {
         // new set for status
         HashMap<String, ZonedDateTime> status = new HashMap<>();
         try {
@@ -445,15 +449,20 @@ public class WorkerController {
                 // the job definition
                 JobDefinition jobDefinition = (JobDefinition) job.getJobDataMap().get(JobConstants.JOB_DEFINITION);
                 
+                // skip jobs of other types
+                if(!Str.eq(jobDefinition.getType(), type)){
+                    continue;
+                }
+                
                 // record last modified time
                 status.put(jobDefinition.getCode(), jobDefinition.getModified());
             }
         }
         catch(SchedulerException error){
-            log.error("JobManager: Could not compute status of executing jobs.", error);
+            log.error("WorkerController: Could not compute status of executing jobs.", error);
         }
                 
-        return new JobStatusExchangeRequest(group, this.cluster, status);
+        return new JobStatusExchangeRequest(group, type, this.cluster, status);
     }
     
     /**

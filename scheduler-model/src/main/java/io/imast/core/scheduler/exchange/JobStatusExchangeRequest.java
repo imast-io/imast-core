@@ -22,6 +22,11 @@ public class JobStatusExchangeRequest {
     private String group;
     
     /**
+     * The target type to lookup
+     */
+    private String type;
+    
+    /**
      * The cluster
      */
     private String cluster;

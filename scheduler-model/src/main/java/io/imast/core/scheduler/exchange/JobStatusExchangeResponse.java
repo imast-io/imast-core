@@ -21,7 +21,12 @@ public class JobStatusExchangeResponse{
      * The group of response
      */
     private String group;
-        
+    
+    /**
+     * The lookup type
+     */
+    private String type;
+    
     /**
      * The set of removed jobs
      */

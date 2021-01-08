@@ -1,7 +1,7 @@
 package io.imast.core.scheduler;
 
 import java.io.Serializable;
-import java.util.HashMap;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,5 +19,5 @@ public class JobData implements Serializable {
     /**
      * The actual data in key value pair format
      */
-    private HashMap<String, Object> data;   
+    private Map<String, Object> data;   
 }
