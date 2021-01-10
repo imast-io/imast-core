@@ -63,18 +63,18 @@ public class JobSchedulerCtl {
      * 
      * @return Returns initialization result
      */
-    public boolean initialize(){
+    public JobSchedulerCtl initialize(){
         
         // prepare agents
-        var result = this.agents.prepare();
+        this.agents.prepare();
         
         // prepare job definitions
-        result = result && this.definitions.prepare();
+        this.definitions.prepare();
         
         // prepare job iterations;
-        result = result && this.iterations.prepare();
+        this.iterations.prepare();
         
-        return result;
+        return this;
     }
     
     /**
@@ -165,6 +165,16 @@ public class JobSchedulerCtl {
      */
     public Optional<JobIteration> addIteration(JobIteration iteration){
         return this.iterations.insert(iteration);
+    }
+    
+    /**
+     * Cleanup iterations
+     * 
+     * @param upper The upper bound to cleanup
+     * @return Returns number of deleted records
+     */
+    public long cleanupIterations(ZonedDateTime upper){
+        return this.iterations.deleteBefore(upper);
     }
     
     /**

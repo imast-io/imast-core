@@ -6,6 +6,7 @@ import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import io.imast.core.Coll;
 import io.imast.core.Str;
+import io.imast.core.Zdt;
 import io.imast.core.mongo.BaseMongoRepository;
 import io.imast.core.mongo.SimplePojoRegistries;
 import io.imast.core.mongo.StringIdGenerator;
@@ -119,7 +120,7 @@ public class JobIterationMongoRepository extends BaseMongoRepository<String, Job
      */
     @Override
     public long deleteBefore(ZonedDateTime timestamp) {
-        return this.getCollection().deleteMany(lt("timestamp", timestamp)).getDeletedCount();
+        return this.getCollection().deleteMany(lt("timestamp", Zdt.toDate(timestamp))).getDeletedCount();
     }   
     
     /**
