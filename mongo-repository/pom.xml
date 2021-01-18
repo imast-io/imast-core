@@ -4,8 +4,8 @@
     <modelVersion>4.0.0</modelVersion>
     
     <groupId>io.imast</groupId>
-    <artifactId>mongo-sync-core</artifactId>
-    <version>0.0.9</version>  
+    <artifactId>mongo-repository</artifactId>
+    <version>0.0.1.PREVIEW</version>  
     <packaging>jar</packaging>
     
     <name>${project.groupId}:${project.artifactId}</name>
@@ -39,12 +39,6 @@
             <groupId>org.mongodb</groupId>
             <artifactId>mongodb-driver-sync</artifactId>
             <version>4.2.0-beta1</version>
-        </dependency>
-
-        <dependency>
-            <groupId>io.github.cbartosiak</groupId>
-            <artifactId>bson-codecs-jsr310</artifactId>
-            <version>3.5.4</version>
         </dependency>
         
     </dependencies>

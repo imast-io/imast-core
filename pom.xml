@@ -17,12 +17,7 @@
         <module>discovery-eureka</module>
         <module>client-core</module>
         <module>client-webflux</module>
-        <module>mongo-sync-core</module>
-        <module>scheduler-model</module>
-        <module>scheduler-data</module>
-        <module>scheduler-data-mongo</module>
-        <module>scheduler-controller</module>
-        <module>scheduler-worker</module>
+        <module>mongo-repository</module>
     </modules>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
